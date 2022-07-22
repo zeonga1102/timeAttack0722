@@ -78,12 +78,11 @@ class ApplyView(APIView):
     permission_classes = [IsCandidateUser]
 
     def get(self, request):
-        apply_status = request.query_params.get('status', None)
-        status_object = ApplicationStatus.objects.get(status=apply_status)
-        applies = JobPostActivity.objects.filter(user=request.user, status=status_object)
+        application_status = request.GET.get('status')
+        application = JobPostActivity.objects.filter(user=request.user, status__status=application_status)
 
-        if applies.exists():
-            apply_serializer = JobPostActivitySerializer(applies, many=True)
+        if application.exists():
+            apply_serializer = JobPostActivitySerializer(application, many=True)
             return Response(apply_serializer.data)
 
         return Response(status=status.HTTP_404_NOT_FOUND)
@@ -91,11 +90,10 @@ class ApplyView(APIView):
     def post(self, request):
         request.data['user']= request.user.id
 
-        request.data['status'] = ApplicationStatus.objects.get(status='submitted').id
-
         apply_serialzer = JobPostActivitySerializer(data=request.data)
         if apply_serialzer.is_valid():
-            apply_serialzer.save()
-            return Response(status=status.HTTP_200_OK)
+            initial_status = ApplicationStatus.objects.get(status="submitted")
+            apply_serialzer.save(status=initial_status)
+            return Response({'message': '지원 완료!'}, status=status.HTTP_200_OK)
 
         return Response(apply_serialzer.errors, status=status.HTTP_400_BAD_REQUEST)
